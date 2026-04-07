@@ -62,7 +62,6 @@ width: 100%;
 max-width: 760px;
 }
 
-/* — INPUT PANEL — */
 .input-panel {
 background: var(–surface);
 border: 1px solid var(–border);
@@ -72,9 +71,7 @@ margin-bottom: 32px;
 transition: border-color 0.2s;
 }
 
-.input-panel:focus-within {
-border-color: var(–accent);
-}
+.input-panel:focus-within { border-color: var(–accent); }
 
 .input-panel label {
 display: block;
@@ -98,10 +95,7 @@ resize: vertical;
 outline: none;
 }
 
-textarea::placeholder {
-color: var(–muted);
-font-style: italic;
-}
+textarea::placeholder { color: var(–muted); font-style: italic; }
 
 .actions {
 display: flex;
@@ -123,30 +117,13 @@ padding: 10px 22px;
 transition: all 0.15s;
 }
 
-.btn-primary {
-background: var(–accent);
-color: #0e0e0e;
-font-weight: 400;
-}
-
+.btn-primary { background: var(–accent); color: #0e0e0e; }
 .btn-primary:hover { background: #d9bc84; }
-
-.btn-ghost {
-background: transparent;
-color: var(–dim);
-border: 1px solid var(–border);
-}
-
+.btn-ghost { background: transparent; color: var(–dim); border: 1px solid var(–border); }
 .btn-ghost:hover { border-color: var(–dim); color: var(–text); }
 
-/* — READER PANEL — */
-.reader-panel {
-display: none;
-}
-
-.reader-panel.active {
-display: block;
-}
+.reader-panel { display: none; }
+.reader-panel.active { display: block; }
 
 .progress-bar-wrap {
 display: flex;
@@ -168,6 +145,7 @@ height: 100%;
 background: var(–accent);
 transition: width 0.4s ease;
 border-radius: 2px;
+width: 0%;
 }
 
 .progress-label {
@@ -179,11 +157,7 @@ min-width: 60px;
 text-align: right;
 }
 
-.sentences-list {
-display: flex;
-flex-direction: column;
-gap: 0;
-}
+.sentences-list { display: flex; flex-direction: column; }
 
 .sentence-item {
 position: relative;
@@ -198,15 +172,7 @@ from { opacity: 0; transform: translateY(10px); }
 to   { opacity: 1; transform: translateY(0); }
 }
 
-.sentence-item .sentence-text {
-font-family: ‘Playfair Display’, serif;
-font-size: 1.15rem;
-line-height: 1.75;
-color: var(–text);
-display: block;
-}
-
-.sentence-item .sentence-num {
+.sentence-num {
 font-size: 0.6rem;
 color: var(–muted);
 letter-spacing: 0.1em;
@@ -214,14 +180,16 @@ margin-bottom: 8px;
 display: block;
 }
 
-/* Last sentence has the click trigger */
-.sentence-item.current {
-cursor: pointer;
+.sentence-text {
+font-family: ‘Playfair Display’, serif;
+font-size: 1.15rem;
+line-height: 1.75;
+color: var(–text);
+display: block;
 }
 
-.sentence-item.current .sentence-text {
-color: var(–accent);
-}
+.sentence-item.current { cursor: pointer; }
+.sentence-item.current .sentence-text { color: var(–accent); }
 
 .sentence-item.current::after {
 content: ‘click for next →’;
@@ -233,15 +201,9 @@ letter-spacing: 0.12em;
 text-transform: uppercase;
 }
 
-.sentence-item.done .sentence-text {
-color: #444;
-}
+.sentence-item.done .sentence-text { color: #444; }
+.sentence-item.done .sentence-num { color: #2a2a2a; }
 
-.sentence-item.done .sentence-num {
-color: #2a2a2a;
-}
-
-/* Completion state */
 .completion {
 display: none;
 text-align: center;
@@ -250,15 +212,9 @@ animation: slideIn 0.4s ease forwards;
 opacity: 0;
 }
 
-.completion.show {
-display: block;
-}
+.completion.show { display: block; }
 
-.completion .icon {
-font-size: 2rem;
-margin-bottom: 16px;
-display: block;
-}
+.completion .icon { font-size: 2rem; margin-bottom: 16px; display: block; }
 
 .completion h2 {
 font-family: ‘Playfair Display’, serif;
@@ -268,13 +224,8 @@ color: var(–accent);
 margin-bottom: 8px;
 }
 
-.completion p {
-color: var(–dim);
-font-size: 0.72rem;
-letter-spacing: 0.1em;
-}
+.completion p { color: var(–dim); font-size: 0.72rem; letter-spacing: 0.1em; }
 
-/* Keyboard hint */
 .kbd-hint {
 text-align: center;
 margin-top: 28px;
@@ -305,29 +256,24 @@ color: var(–dim);
 
 <div class="container">
 
-  <!-- INPUT -->
-
   <div class="input-panel" id="inputPanel">
     <label for="textInput">Paste your paragraph</label>
     <textarea id="textInput" placeholder="Paste any paragraph here and click Begin to read it sentence by sentence…"></textarea>
     <div class="actions">
       <button class="btn-primary" onclick="begin()">Begin Reading</button>
-      <button class="btn-ghost" onclick="clearAll()">Clear</button>
+      <button class="btn-ghost" onclick="document.getElementById('textInput').value=''">Clear</button>
     </div>
   </div>
 
-  <!-- READER -->
-
   <div class="reader-panel" id="readerPanel">
+    <div class="progress-bar-wrap">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <span class="progress-label" id="progressLabel">0 / 0</span>
+    </div>
 
 ```
-<div class="progress-bar-wrap">
-  <div class="progress-bar">
-    <div class="progress-fill" id="progressFill"></div>
-  </div>
-  <span class="progress-label" id="progressLabel">0 / 0</span>
-</div>
-
 <div class="sentences-list" id="sentencesList"></div>
 
 <div class="completion" id="completion">
@@ -350,12 +296,12 @@ color: var(–dim);
 
 <script>
   let sentences = [];
-  let revealed = 0;
+  let currentIndex = 0;
 
   function splitSentences(text) {
-    // Split on sentence-ending punctuation followed by space or end
-    const raw = text.trim().match(/[^.!?]+[.!?]+[\s]*/g) || [text.trim()];
-    return raw.map(s => s.trim()).filter(s => s.length > 0);
+    // Split on sentence-ending punctuation; also capture any trailing sentence without punctuation
+    const parts = text.trim().split(/(?<=[.!?])\s+/);
+    return parts.map(s => s.trim()).filter(s => s.length > 0);
   }
 
   function begin() {
@@ -363,19 +309,21 @@ color: var(–dim);
     if (!input) return;
 
     sentences = splitSentences(input);
-    revealed = 0;
+    currentIndex = 0;
 
     document.getElementById('sentencesList').innerHTML = '';
     document.getElementById('completion').classList.remove('show');
+    document.getElementById('kbdHint').style.display = '';
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressLabel').textContent = '0 / ' + sentences.length;
     document.getElementById('inputPanel').style.display = 'none';
     document.getElementById('readerPanel').classList.add('active');
 
-    updateProgress();
-    revealNext();
+    addSentence();
   }
 
-  function revealNext() {
-    if (revealed >= sentences.length) {
+  function addSentence() {
+    if (currentIndex >= sentences.length) {
       document.getElementById('kbdHint').style.display = 'none';
       document.getElementById('completion').classList.add('show');
       return;
@@ -391,63 +339,7 @@ color: var(–dim);
       prev.onclick = null;
     }
 
-    // Add new sentence
-    const item = document.createElement('div');
-    item.className = 'sentence-item current';
-    item.innerHTML = `
-      <span class="sentence-num">${revealed + 1} of ${sentences.length}</span>
-      <span class="sentence-text">${escHtml(sentences[revealed])}</span>
-    `;
-    item.onclick = () => {
-      revealed++;
-      updateProgress();
-      revealNext();
-    };
-    list.appendChild(item);
-
-    // Scroll into view
-    setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-
-    revealed++;
-    updateProgress();
-  }
-
-  // Correct: reveal increments after adding, so fix — reset counter properly
-  function begin() {
-    const input = document.getElementById('textInput').value.trim();
-    if (!input) return;
-
-    sentences = splitSentences(input);
-    revealed = 0;
-
-    document.getElementById('sentencesList').innerHTML = '';
-    document.getElementById('completion').classList.remove('show');
-    document.getElementById('kbdHint').style.display = '';
-    document.getElementById('inputPanel').style.display = 'none';
-    document.getElementById('readerPanel').classList.add('active');
-
-    updateProgress();
-    addSentence(0);
-  }
-
-  function addSentence(index) {
-    if (index >= sentences.length) {
-      // All done
-      document.getElementById('kbdHint').style.display = 'none';
-      document.getElementById('completion').classList.add('show');
-      return;
-    }
-
-    const list = document.getElementById('sentencesList');
-
-    // De-activate previous
-    const prev = list.querySelector('.sentence-item.current');
-    if (prev) {
-      prev.classList.remove('current');
-      prev.classList.add('done');
-      prev.onclick = null;
-    }
-
+    const index = currentIndex;
     const item = document.createElement('div');
     item.className = 'sentence-item current';
     item.innerHTML = `
@@ -455,48 +347,38 @@ color: var(–dim);
       <span class="sentence-text">${escHtml(sentences[index])}</span>
     `;
     item.onclick = () => {
-      revealed = index + 1;
+      currentIndex++;
       updateProgress();
-      addSentence(revealed);
+      addSentence();
     };
 
     list.appendChild(item);
     setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
 
-    revealed = index + 1;
     updateProgress();
   }
 
   function updateProgress() {
-    const total = sentences.length;
-    const pct = total ? Math.round((revealed / total) * 100) : 0;
+    const pct = sentences.length ? Math.round(((currentIndex) / sentences.length) * 100) : 0;
     document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressLabel').textContent = `${revealed} / ${total}`;
+    document.getElementById('progressLabel').textContent = `${currentIndex} / ${sentences.length}`;
   }
 
   function reset() {
     document.getElementById('readerPanel').classList.remove('active');
     document.getElementById('inputPanel').style.display = '';
     sentences = [];
-    revealed = 0;
-  }
-
-  function clearAll() {
-    document.getElementById('textInput').value = '';
+    currentIndex = 0;
   }
 
   function escHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // Keyboard: Space or Arrow Right
   document.addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'ArrowRight') {
       const current = document.querySelector('.sentence-item.current');
-      if (current) {
-        e.preventDefault();
-        current.click();
-      }
+      if (current) { e.preventDefault(); current.click(); }
     }
   });
 </script>
