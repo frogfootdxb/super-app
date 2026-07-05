@@ -351,7 +351,7 @@ function renderChild() {
       const dateStr = addDays(weekStart, d);
       const isRead = !!daysRead[dateStr];
       const isFuture = dateStr > today;
-      const hasContent = config.contentDates.includes(dateStr);
+      const hasContent = (config.contentDates || []).includes(dateStr);
       if (isRead) weekReadCount++;
       if (dateStr === today) weekHasToday = true;
       dayButtons.push(`
@@ -606,8 +606,8 @@ document.getElementById('saveContentBtn').addEventListener('click', async () => 
   }
 
   await setJSON(contentKey(dateStr), { title, pages });
-  if (!config.contentDates.includes(dateStr)) {
-    config.contentDates.push(dateStr);
+  if (!(config.contentDates || []).includes(dateStr)) {
+    (config.contentDates = config.contentDates || []).push(dateStr);
     await setJSON(CFG_KEY, config);
   }
   alert('Saved challenge for ' + formatShort(dateStr));
@@ -634,7 +634,7 @@ document.getElementById('clearContentBtn').addEventListener('click', async () =>
   if (!dateStr) return;
   if (!confirm('Clear challenge content for ' + formatShort(dateStr) + '?')) return;
   await deleteKey(contentKey(dateStr));
-  config.contentDates = config.contentDates.filter(d => d !== dateStr);
+  config.contentDates = (config.contentDates || []).filter(d => d !== dateStr);
   await setJSON(CFG_KEY, config);
   loadContentEditorForDate(dateStr);
   alert('Cleared');
@@ -729,7 +729,7 @@ document.getElementById('bulkImportBtn').addEventListener('click', async () => {
     const entry = parsed[dateStr];
     if (!entry || !entry.pages || !entry.pages.length) continue;
     await setJSON(contentKey(dateStr), { title: entry.title || '', pages: entry.pages });
-    if (!config.contentDates.includes(dateStr)) config.contentDates.push(dateStr);
+    if (!(config.contentDates || []).includes(dateStr)) (config.contentDates = config.contentDates || []).push(dateStr);
     imported++;
   }
   await setJSON(CFG_KEY, config);
@@ -742,7 +742,7 @@ document.getElementById('bulkImportBtn').addEventListener('click', async () => {
 document.getElementById('bulkExportBtn').addEventListener('click', async () => {
   const statusEl = document.getElementById('bulkStatus');
   const result = {};
-  for (const dateStr of config.contentDates) {
+  for (const dateStr of (config.contentDates || [])) {
     const content = await getJSON(contentKey(dateStr), null);
     if (content) result[dateStr] = content;
   }
