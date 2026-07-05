@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Angels - Musical Statues</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    transition: background-color 0.3s ease;
+    background: #2ecc71;
+    overflow: hidden;
+  }
+  body.frozen { background: #e74c3c; }
+
+  .wrap {
+    text-align: center;
+    color: black;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 3rem;
+    margin: 0 0 10px;
+    letter-spacing: 2px;
+  }
+
+  .status {
+    font-size: 2.2rem;
+    font-weight: bold;
+    margin-bottom: 30px;
+    min-height: 2.6rem;
+  }
+
+  button {
+    font-size: 1.3rem;
+    padding: 18px 40px;
+    border-radius: 50px;
+    border: none;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:active { transform: scale(0.97); }
+
+  .settings {
+    margin-top: 30px;
+    font-size: 1rem;
+    opacity: 0.85;
+  }
+  .settings label { margin: 0 10px; }
+  .settings input {
+    width: 55px;
+    padding: 4px;
+    border-radius: 6px;
+    border: none;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ANGELS 🕊️</h1>
+    <div class="status" id="status">Tap Start</div>
+    <button id="toggleBtn">Start</button>
+    <div class="settings">
+      Music plays for
+      <input type="number" id="minSec" value="5" min="1" max="60"> to
+      <input type="number" id="maxSec" value="20" min="1" max="60">
+      seconds
+    </div>
+    <div style="margin-top:20px;">
+      <button id="testBtn" style="font-size:0.9rem; padding:10px 20px;">Test Sound</button>
+    </div>
+    <div id="errorBox" style="margin-top:15px; color:#c0392b; font-size:0.9rem; max-width:400px;"></div>
+  </div>
+
+<script>
+let audioCtx = null;
+let playing = false;
+let running = false;
+let timerId = null;
+let noteId = null;
+
+const statusEl = document.getElementById('status');
+const btn = document.getElementById('toggleBtn');
+const minInput = document.getElementById('minSec');
+const maxInput = document.getElementById('maxSec');
+
+const errorBox = document.getElementById('errorBox');
+function showError(e) {
+  errorBox.textContent = 'Audio error: ' + (e && e.message ? e.message : e);
+}
+
+function ensureAudio() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  } catch (e) {
+    showError(e);
+  }
+}
+
+document.getElementById('testBtn').addEventListener('click', () => {
+  try {
+    ensureAudio();
+    audioCtx.resume().then(() => {
+      errorBox.textContent = 'AudioContext state: ' + audioCtx.state;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 440;
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+    }).catch(showError);
+  } catch (e) {
+    showError(e);
+  }
+});
+
+// Simple upbeat repeating melody generator using oscillators
+const melodyNotes = [523.25, 587.33, 659.25, 523.25, 659.25, 783.99, 659.25, 587.33]; // C D E C E G E D
+let noteIndex = 0;
+
+function playNote() {
+  if (!playing) return;
+  const freq = melodyNotes[noteIndex % melodyNotes.length];
+  noteIndex++;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.28);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+
+  noteId = setTimeout(playNote, 300);
+}
+
+function startMusic() {
+  ensureAudio();
+  playing = true;
+  document.body.classList.remove('frozen');
+  statusEl.textContent = '🎵 MOVE! 🎵';
+  playNote();
+
+  const min = parseFloat(minInput.value) || 5;
+  const max = parseFloat(maxInput.value) || 20;
+  const duration = (Math.random() * (max - min) + min) * 1000;
+
+  timerId = setTimeout(stopMusic, duration);
+}
+
+function stopMusic() {
+  playing = false;
+  clearTimeout(noteId);
+  document.body.classList.add('frozen');
+  statusEl.textContent = '🧍 FREEZE! 🧍';
+}
+
+function nextRound() {
+  if (!running) return;
+  // brief pause while frozen before music restarts, then start again
+  const pause = (Math.random() * 3 + 2) * 1000; // 2-5s freeze period
+  timerId = setTimeout(() => {
+    if (running) startMusic();
+  }, pause);
+}
+
+// Wrap stopMusic to trigger next round when game is running continuously
+const originalStop = stopMusic;
+stopMusic = function() {
+  originalStop();
+  nextRound();
+};
+
+btn.addEventListener('click', () => {
+  ensureAudio();
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  if (!running) {
+    running = true;
+    btn.textContent = 'Stop Game';
+    startMusic();
+  } else {
+    running = false;
+    playing = false;
+    clearTimeout(timerId);
+    clearTimeout(noteId);
+    document.body.classList.remove('frozen');
+    statusEl.textContent = 'Tap Start';
+    btn.textContent = 'Start';
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Summer Reading Challenge</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, #fff4e0 0%, #ffe8c9 100%);
+    color: #3a2b1a;
+    padding: 16px;
+    padding-bottom: 60px;
+  }
+  h1 { text-align: center; font-size: 1.7rem; margin: 10px 0 4px; color: #d2691e; }
+  .subtitle { text-align: center; font-size: 0.95rem; color: #8a6a4a; margin-bottom: 20px; }
+  .points-bar { background: white; border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  .points-total { font-size: 2.2rem; font-weight: bold; color: #e67e22; }
+  .points-label { font-size: 0.85rem; color: #8a6a4a; }
+  .week-card { background: white; border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .week-card.current { border: 2px solid #f39c12; }
+  .week-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .week-title { font-weight: bold; font-size: 1.05rem; }
+  .week-points { font-size: 0.9rem; color: #e67e22; font-weight: bold; }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .day { aspect-ratio: 1; border-radius: 10px; border: none; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.7rem; color: #999; cursor: pointer; position: relative; }
+  .day.done { background: #2ecc71; color: white; }
+  .day.hasContent::after { content: '📖'; position: absolute; top: 2px; right: 2px; font-size: 0.6rem; }
+  .day.future { opacity: 0.4; cursor: default; }
+  .day .star { font-size: 1.1rem; line-height: 1; }
+  .prize-row { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee; font-size: 0.9rem; }
+  .prize-status { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+  .prize-status.locked { background: #eee; color: #999; }
+  .prize-status.unlocked { background: #2ecc71; color: white; }
+  .footer-links { text-align: center; margin: 20px 0 10px; }
+  .footer-links button { background: none; border: none; color: #b08968; font-size: 0.85rem; text-decoration: underline; margin: 0 8px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 20px; max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto; }
+  .modal h2 { margin-top: 0; font-size: 1.2rem; }
+  .modal img { max-width: 100%; border-radius: 10px; margin: 10px 0; }
+  .modal .page-text { font-size: 1rem; line-height: 1.5; white-space: pre-wrap; }
+  .modal-nav { display: flex; justify-content: space-between; margin-top: 16px; }
+  .modal-nav button { padding: 10px 16px; border-radius: 8px; border: none; background: #f0f0f0; }
+  .modal-nav button.primary { background: #e67e22; color: white; }
+  .modal-close { background: none; border: none; float: right; font-size: 1.2rem; cursor: pointer; }
+
+  .admin-section { background: white; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+  .admin-section h3 { margin-top: 0; font-size: 1rem; }
+  .admin-section label { display: block; margin-bottom: 10px; font-size: 0.9rem; }
+  .admin-section input, .admin-section textarea, .admin-section select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; margin-top: 4px; font-family: inherit; }
+  .page-editor { border: 1px solid #eee; border-radius: 10px; padding: 10px; margin-bottom: 10px; position: relative; }
+  .page-editor .remove-page { position: absolute; top: 6px; right: 6px; background: #e74c3c; color: white; border: none; border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; }
+  .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+  .btn-primary { background: #e67e22; color: white; }
+  .btn-secondary { background: #eee; color: #333; }
+  .pin-screen { text-align: center; padding: 60px 20px; }
+  .pin-screen input { font-size: 1.5rem; text-align: center; letter-spacing: 8px; padding: 10px; width: 160px; border-radius: 10px; border: 1px solid #ddd; }
+  .loading { text-align: center; padding: 40px; color: #b08968; }
+</style>
+</head>
+<body>
+
+<div id="childView">
+  <h1>📚 Summer Reading Challenge</h1>
+  <div class="subtitle" id="dateRange">Loading...</div>
+  <div class="points-bar">
+    <div class="points-total" id="totalPoints">0</div>
+    <div class="points-label">total points earned</div>
+  </div>
+  <div id="weeksContainer" class="loading">Loading your challenge...</div>
+  <div class="footer-links">
+    <button id="adminEnterBtn">⚙️ Admin</button>
+  </div>
+</div>
+
+<div id="adminView" style="display:none;">
+  <h1>🔐 Admin</h1>
+  <div id="pinScreen" class="pin-screen">
+    <p id="pinPrompt">Enter admin PIN</p>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="6">
+    <div style="margin-top:16px;">
+      <button class="btn btn-primary" id="pinSubmit">Unlock</button>
+    </div>
+    <div style="margin-top:20px;">
+      <button class="footer-links" id="backFromPin" style="background:none;border:none;color:#b08968;text-decoration:underline;">Back</button>
+    </div>
+  </div>
+
+  <div id="adminPanel" style="display:none;">
+    <div class="admin-section">
+      <h3>General Settings</h3>
+      <label>Start date
+        <input type="date" id="startDate">
+      </label>
+      <label>Points per day read
+        <input type="number" id="pointsPerDay" min="1" max="50">
+      </label>
+      <label>Default days needed per week for prize
+        <input type="number" id="goalDays" min="1" max="7">
+      </label>
+      <label>Number of weeks
+        <input type="number" id="numWeeks" min="1" max="16">
+      </label>
+      <label>Reading level (used in AI prompt generator)
+        <input type="text" id="readingLevel" placeholder="e.g. UK Orange book band, age 6-7">
+      </label>
+      <button class="btn btn-primary" id="saveConfig">Save Settings</button>
+    </div>
+
+    <div class="admin-section">
+      <h3>Daily Challenge Content</h3>
+      <label>Pick a day
+        <input type="date" id="contentDate">
+      </label>
+      <label>Title (optional)
+        <input type="text" id="contentTitle" placeholder="e.g. Chapter 3">
+      </label>
+      <div id="pagesEditor"></div>
+      <button class="btn btn-secondary" id="addPageBtn" type="button">+ Add Page</button>
+      <div style="margin-top:12px;">
+        <button class="btn btn-primary" id="saveContentBtn">Save Day's Challenge</button>
+        <button class="btn btn-secondary" id="clearContentBtn" type="button">Clear This Day</button>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <h3>Generate AI Prompt (paste into Claude/ChatGPT)</h3>
+      <label>Week
+        <select id="promptWeek"></select>
+      </label>
+      <label>Topic
+        <input type="text" id="promptTopic" placeholder="e.g. Minecraft JJ &amp; Mikey">
+      </label>
+      <label>Pages per day
+        <input type="number" id="promptPagesPerDay" min="1" max="12" value="6">
+      </label>
+      <button class="btn btn-primary" id="generatePromptBtn" type="button">Generate Prompt</button>
+      <textarea id="generatedPrompt" rows="10" style="margin-top:10px;" readonly></textarea>
+      <div style="margin-top:8px;">
+        <button class="btn btn-secondary" id="copyPromptBtn" type="button">Copy Prompt</button>
+      </div>
+      <p style="font-size:0.8rem; color:#8a6a4a;">
+        Paste the copied prompt into Claude or ChatGPT, then paste its JSON reply into the Bulk Import box above.
+      </p>
+    </div>
+
+    <div class="admin-section">
+      <h3>Bulk Import / Export (JSON)</h3>
+      <p style="font-size:0.85rem; color:#8a6a4a; margin-top:0;">
+        Format: an object keyed by date (YYYY-MM-DD), each with a title and pages array.
+        Image field is optional — omit it or leave blank for text-only pages.
+      </p>
+      <textarea id="bulkJsonArea" rows="8" placeholder='{
+  "2026-07-06": {
+    "title": "Day 1",
+    "pages": [
+      { "text": "Once upon a time..." },
+      { "text": "The next page of the story..." }
+    ]
+  },
+  "2026-07-07": {
+    "title": "Day 2",
+    "pages": [ { "text": "..." } ]
+  }
+}'></textarea>
+      <div style="margin-top:10px;">
+        <button class="btn btn-primary" id="bulkImportBtn" type="button">Import JSON</button>
+        <button class="btn btn-secondary" id="bulkExportBtn" type="button">Export Current Content</button>
+      </div>
+      <div id="bulkStatus" style="font-size:0.85rem; margin-top:8px; color:#8a6a4a;"></div>
+    </div>
+
+    <div class="admin-section">
+      <h3>Weekly Prizes</h3>
+      <div id="prizesEditor"></div>
+      <button class="btn btn-primary" id="savePrizesBtn">Save Prizes</button>
+    </div>
+
+    <div class="admin-section">
+      <h3>Change PIN</h3>
+      <label>New PIN
+        <input type="password" id="newPin" inputmode="numeric" maxlength="6">
+      </label>
+      <button class="btn btn-primary" id="changePinBtn">Update PIN</button>
+    </div>
+
+    <div class="footer-links">
+      <button id="lockAdminBtn">🔒 Lock &amp; Return</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="challengeModal">
+  <div class="modal">
+    <button class="modal-close" id="modalCloseBtn">✕</button>
+    <h2 id="modalTitle">Today's Reading</h2>
+    <div id="modalPageContent"></div>
+    <div class="modal-nav">
+      <button id="modalPrevBtn">← Prev</button>
+      <span id="modalPageIndicator" style="align-self:center; font-size:0.85rem; color:#999;"></span>
+      <button id="modalNextBtn" class="primary">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CFG_KEY = 'rc-config';
+const DAYS_KEY = 'rc-days';
+const PRIZES_KEY = 'rc-prizes';
+const contentKey = (dateStr) => 'rc-content-' + dateStr;
+
+let config = null;
+let daysRead = {};
+let prizes = {};
+let adminUnlocked = false;
+let modalState = { dateStr: null, pages: [], index: 0 };
+
+function todayStr() { return new Date().toISOString().slice(0,10); }
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+function formatShort(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+async function getJSON(key, fallback) {
+  try {
+    const r = await window.storage.get(key);
+    return r && r.value ? JSON.parse(r.value) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+async function setJSON(key, obj) {
+  try {
+    await window.storage.set(key, JSON.stringify(obj));
+  } catch (e) {
+    console.error('storage set failed', e);
+  }
+}
+
+async function loadAll() {
+  config = await getJSON(CFG_KEY, null);
+  if (!config) {
+    config = {
+      startDate: todayStr(),
+      pointsPerDay: 10,
+      goalDays: 5,
+      numWeeks: 6,
+      adminPin: null,
+      contentDates: [],
+      readingLevel: 'UK Orange book band, age 6-7'
+    };
+    await setJSON(CFG_KEY, config);
+  }
+  if (!config.readingLevel) config.readingLevel = 'UK Orange book band, age 6-7';
+  daysRead = await getJSON(DAYS_KEY, {});
+  prizes = await getJSON(PRIZES_KEY, {});
+  renderChild();
+}
+
+async function toggleDayRead(dateStr) {
+  if (daysRead[dateStr]) delete daysRead[dateStr];
+  else daysRead[dateStr] = true;
+  await setJSON(DAYS_KEY, daysRead);
+  renderChild();
+}
+
+function renderChild() {
+  const totalPoints = Object.keys(daysRead).length * config.pointsPerDay;
+  document.getElementById('totalPoints').textContent = totalPoints;
+
+  const endDate = addDays(config.startDate, config.numWeeks * 7 - 1);
+  document.getElementById('dateRange').textContent = formatShort(config.startDate) + ' – ' + formatShort(endDate);
+
+  const container = document.getElementById('weeksContainer');
+  container.className = '';
+  container.innerHTML = '';
+
+  const today = todayStr();
+  const dayLabels = ['M','T','W','T','F','S','S'];
+
+  for (let w = 0; w < config.numWeeks; w++) {
+    const weekStart = addDays(config.startDate, w * 7);
+    let weekReadCount = 0;
+    let weekHasToday = false;
+    const dayButtons = [];
+
+    for (let d = 0; d < 7; d++) {
+      const dateStr = addDays(weekStart, d);
+      const isRead = !!daysRead[dateStr];
+      const isFuture = dateStr > today;
+      const hasContent = config.contentDates.includes(dateStr);
+      if (isRead) weekReadCount++;
+      if (dateStr === today) weekHasToday = true;
+      dayButtons.push(`
+        <button class="day ${isRead ? 'done' : ''} ${isFuture ? 'future' : ''} ${hasContent ? 'hasContent' : ''}"
+                data-date="${dateStr}" ${isFuture ? 'disabled' : ''}>
+          <span class="star">${isRead ? '⭐' : ''}</span>
+          <span>${dayLabels[d]}</span>
+        </button>
+      `);
+    }
+
+    const weekPrize = prizes[w] || { prizeText: 'Surprise prize!', requiredDays: config.goalDays };
+    const requiredDays = weekPrize.requiredDays || config.goalDays;
+    const goalMet = weekReadCount >= requiredDays;
+    const isCurrent = weekHasToday;
+
+    const card = document.createElement('div');
+    card.className = 'week-card' + (isCurrent ? ' current' : '');
+    card.innerHTML = `
+      <div class="week-header">
+        <div class="week-title">Week ${w + 1}${isCurrent ? ' (this week)' : ''}</div>
+        <div class="week-points">${weekReadCount}/7 days</div>
+      </div>
+      <div class="days">${dayButtons.join('')}</div>
+      ${weekPrize.imageUrl ? `<img src="${weekPrize.imageUrl}" style="max-width:100%; border-radius:10px; margin-top:10px;" onerror="this.style.display='none'">` : ''}
+      <div class="prize-row">
+        Prize: <strong>${weekPrize.prizeText}</strong> — read ${requiredDays}/7 days to unlock
+        <div>
+          <span class="prize-status ${goalMet ? 'unlocked' : 'locked'}">
+            ${goalMet ? '🎁 Unlocked!' : `${requiredDays - weekReadCount} more day(s) to go`}
+          </span>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+
+  container.querySelectorAll('.day:not(.future)').forEach(btn => {
+    btn.addEventListener('click', () => onDayTap(btn.dataset.date));
+  });
+}
+
+async function onDayTap(dateStr) {
+  if (config.contentDates.includes(dateStr)) {
+    const content = await getJSON(contentKey(dateStr), null);
+    if (content && content.pages && content.pages.length) {
+      openModal(dateStr, content);
+      return;
+    }
+  }
+  toggleDayRead(dateStr);
+}
+
+function openModal(dateStr, content) {
+  modalState = { dateStr, pages: content.pages, index: 0, title: content.title };
+  document.getElementById('challengeModal').classList.add('open');
+  renderModalPage();
+}
+
+function renderModalPage() {
+  const { pages, index, title, dateStr } = modalState;
+  document.getElementById('modalTitle').textContent = title || formatShort(dateStr);
+  const page = pages[index];
+  let html = '';
+  if (page.image) html += `<img src="${page.image}">`;
+  html += `<div class="page-text">${(page.text || '').replace(/</g,'&lt;')}</div>`;
+  document.getElementById('modalPageContent').innerHTML = html;
+  document.getElementById('modalPageIndicator').textContent = `Page ${index + 1} of ${pages.length}`;
+  const nextBtn = document.getElementById('modalNextBtn');
+  nextBtn.textContent = index === pages.length - 1 ? '⭐ Mark as read' : 'Next →';
+  document.getElementById('modalPrevBtn').disabled = index === 0;
+}
+
+document.getElementById('modalPrevBtn').addEventListener('click', () => {
+  if (modalState.index > 0) { modalState.index--; renderModalPage(); }
+});
+document.getElementById('modalNextBtn').addEventListener('click', () => {
+  if (modalState.index < modalState.pages.length - 1) {
+    modalState.index++;
+    renderModalPage();
+  } else {
+    document.getElementById('challengeModal').classList.remove('open');
+    toggleDayRead(modalState.dateStr);
+  }
+});
+document.getElementById('modalCloseBtn').addEventListener('click', () => {
+  document.getElementById('challengeModal').classList.remove('open');
+});
+
+// ---------- Admin ----------
+
+document.getElementById('adminEnterBtn').addEventListener('click', () => {
+  document.getElementById('childView').style.display = 'none';
+  document.getElementById('adminView').style.display = 'block';
+  adminUnlocked = false;
+  document.getElementById('pinScreen').style.display = 'block';
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinPrompt').textContent = config.adminPin ? 'Enter admin PIN' : 'No PIN set yet — enter a new PIN to create one';
+});
+
+document.getElementById('backFromPin').addEventListener('click', () => {
+  document.getElementById('adminView').style.display = 'none';
+  document.getElementById('childView').style.display = 'block';
+});
+
+document.getElementById('pinSubmit').addEventListener('click', async () => {
+  const entered = document.getElementById('pinInput').value.trim();
+  if (!entered) return;
+  if (!config.adminPin) {
+    config.adminPin = entered;
+    await setJSON(CFG_KEY, config);
+    unlockAdmin();
+  } else if (entered === config.adminPin) {
+    unlockAdmin();
+  } else {
+    document.getElementById('pinPrompt').textContent = 'Wrong PIN — try again';
+    document.getElementById('pinInput').value = '';
+  }
+});
+
+function unlockAdmin() {
+  adminUnlocked = true;
+  document.getElementById('pinScreen').style.display = 'none';
+  document.getElementById('adminPanel').style.display = 'block';
+  document.getElementById('startDate').value = config.startDate;
+  document.getElementById('pointsPerDay').value = config.pointsPerDay;
+  document.getElementById('goalDays').value = config.goalDays;
+  document.getElementById('numWeeks').value = config.numWeeks;
+  document.getElementById('readingLevel').value = config.readingLevel;
+  document.getElementById('contentDate').value = todayStr();
+  loadContentEditorForDate(todayStr());
+  renderPrizesEditor();
+  populatePromptWeekSelect();
+}
+
+document.getElementById('lockAdminBtn').addEventListener('click', () => {
+  adminUnlocked = false;
+  document.getElementById('adminView').style.display = 'none';
+  document.getElementById('childView').style.display = 'block';
+  renderChild();
+});
+
+document.getElementById('saveConfig').addEventListener('click', async () => {
+  config.startDate = document.getElementById('startDate').value || config.startDate;
+  config.pointsPerDay = parseInt(document.getElementById('pointsPerDay').value) || 10;
+  config.goalDays = parseInt(document.getElementById('goalDays').value) || 5;
+  config.numWeeks = parseInt(document.getElementById('numWeeks').value) || 6;
+  config.readingLevel = document.getElementById('readingLevel').value || config.readingLevel;
+  await setJSON(CFG_KEY, config);
+  alert('Settings saved');
+});
+
+document.getElementById('changePinBtn').addEventListener('click', async () => {
+  const newPin = document.getElementById('newPin').value.trim();
+  if (!newPin) return;
+  config.adminPin = newPin;
+  await setJSON(CFG_KEY, config);
+  document.getElementById('newPin').value = '';
+  alert('PIN updated');
+});
+
+// -- content editor --
+document.getElementById('contentDate').addEventListener('change', (e) => {
+  loadContentEditorForDate(e.target.value);
+});
+
+async function loadContentEditorForDate(dateStr) {
+  const content = await getJSON(contentKey(dateStr), { title: '', pages: [] });
+  document.getElementById('contentTitle').value = content.title || '';
+  const editor = document.getElementById('pagesEditor');
+  editor.innerHTML = '';
+  if (content.pages && content.pages.length) {
+    content.pages.forEach(p => addPageEditorRow(p.text, p.image));
+  } else {
+    addPageEditorRow('', null);
+  }
+}
+
+function addPageEditorRow(text, image) {
+  const editor = document.getElementById('pagesEditor');
+  const row = document.createElement('div');
+  row.className = 'page-editor';
+  row.innerHTML = `
+    <button type="button" class="remove-page">Remove</button>
+    <label>Page text
+      <textarea rows="3" class="page-text-input">${text ? text.replace(/</g,'&lt;') : ''}</textarea>
+    </label>
+    <label>Image (optional)
+      <input type="file" accept="image/*" class="page-image-input">
+    </label>
+    <img class="page-image-preview" src="${image || ''}" style="max-width:100%; border-radius:8px; margin-top:6px; ${image ? '' : 'display:none;'}">
+  `;
+  row.dataset.image = image || '';
+  row.querySelector('.remove-page').addEventListener('click', () => row.remove());
+  row.querySelector('.page-image-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    resizeImage(file, 700, 0.6).then(dataUrl => {
+      row.dataset.image = dataUrl;
+      const preview = row.querySelector('.page-image-preview');
+      preview.src = dataUrl;
+      preview.style.display = 'block';
+    });
+  });
+  editor.appendChild(row);
+}
+
+function resizeImage(file, maxWidth, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('addPageBtn').addEventListener('click', () => addPageEditorRow('', null));
+
+document.getElementById('saveContentBtn').addEventListener('click', async () => {
+  const dateStr = document.getElementById('contentDate').value;
+  if (!dateStr) return;
+  const title = document.getElementById('contentTitle').value;
+  const rows = document.querySelectorAll('#pagesEditor .page-editor');
+  const pages = Array.from(rows).map(row => ({
+    text: row.querySelector('.page-text-input').value,
+    image: row.dataset.image || null
+  })).filter(p => p.text || p.image);
+
+  if (pages.length === 0) {
+    alert('Add at least one page with text or an image');
+    return;
+  }
+
+  await setJSON(contentKey(dateStr), { title, pages });
+  if (!config.contentDates.includes(dateStr)) {
+    config.contentDates.push(dateStr);
+    await setJSON(CFG_KEY, config);
+  }
+  alert('Saved challenge for ' + formatShort(dateStr));
+});
+
+document.getElementById('clearContentBtn').addEventListener('click', async () => {
+  const dateStr = document.getElementById('contentDate').value;
+  if (!dateStr) return;
+  if (!confirm('Clear challenge content for ' + formatShort(dateStr) + '?')) return;
+  await window.storage.delete(contentKey(dateStr)).catch(() => {});
+  config.contentDates = config.contentDates.filter(d => d !== dateStr);
+  await setJSON(CFG_KEY, config);
+  loadContentEditorForDate(dateStr);
+  alert('Cleared');
+});
+
+// -- AI prompt generator --
+function populatePromptWeekSelect() {
+  const sel = document.getElementById('promptWeek');
+  sel.innerHTML = '';
+  for (let w = 0; w < config.numWeeks; w++) {
+    const weekStart = addDays(config.startDate, w * 7);
+    const weekEnd = addDays(weekStart, 6);
+    const opt = document.createElement('option');
+    opt.value = w;
+    opt.textContent = `Week ${w + 1} (${formatShort(weekStart)} - ${formatShort(weekEnd)})`;
+    sel.appendChild(opt);
+  }
+}
+
+document.getElementById('generatePromptBtn').addEventListener('click', () => {
+  const w = parseInt(document.getElementById('promptWeek').value) || 0;
+  const topic = document.getElementById('promptTopic').value.trim() || '(pick a topic)';
+  const pagesPerDay = parseInt(document.getElementById('promptPagesPerDay').value) || 6;
+  const weekStart = addDays(config.startDate, w * 7);
+
+  const dateList = [];
+  for (let d = 0; d < 7; d++) dateList.push(addDays(weekStart, d));
+
+  const exampleDate = dateList[0];
+  const prompt = `Create a JSON object for a children's reading app.
+
+Reading level: ${config.readingLevel}
+Topic for this week: ${topic}
+Dates to cover: ${dateList.join(', ')}
+Pages per day: ${pagesPerDay}
+
+Each page should be 2-4 short sentences, simple vocabulary appropriate for the reading level above, engaging and fun, tied to the topic. Keep the story or facts progressing sensibly from page to page and day to day if it makes sense to.
+
+Return ONLY valid JSON, no explanation, no markdown code fences, in exactly this structure:
+
+{
+  "${exampleDate}": {
+    "title": "Short title for this day",
+    "pages": [
+      { "text": "Page 1 text here." },
+      { "text": "Page 2 text here." }
+    ]
+  }
+}
+
+Include one entry for each of these dates: ${dateList.join(', ')}, each with ${pagesPerDay} pages.`;
+
+  document.getElementById('generatedPrompt').value = prompt;
+});
+
+document.getElementById('copyPromptBtn').addEventListener('click', async () => {
+  const textarea = document.getElementById('generatedPrompt');
+  textarea.select();
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    document.getElementById('copyPromptBtn').textContent = 'Copied!';
+    setTimeout(() => { document.getElementById('copyPromptBtn').textContent = 'Copy Prompt'; }, 1500);
+  } catch (e) {
+    // clipboard API blocked - text is already selected for manual copy
+  }
+});
+
+// -- bulk import/export --
+document.getElementById('bulkImportBtn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('bulkStatus');
+  let parsed;
+  try {
+    parsed = JSON.parse(document.getElementById('bulkJsonArea').value);
+  } catch (e) {
+    statusEl.textContent = 'Invalid JSON: ' + e.message;
+    statusEl.style.color = '#e74c3c';
+    return;
+  }
+
+  const dateKeys = Object.keys(parsed);
+  if (dateKeys.length === 0) {
+    statusEl.textContent = 'No dates found in JSON';
+    statusEl.style.color = '#e74c3c';
+    return;
+  }
+
+  statusEl.textContent = `Importing ${dateKeys.length} day(s)...`;
+  statusEl.style.color = '#8a6a4a';
+
+  let imported = 0;
+  for (const dateStr of dateKeys) {
+    const entry = parsed[dateStr];
+    if (!entry || !entry.pages || !entry.pages.length) continue;
+    await setJSON(contentKey(dateStr), { title: entry.title || '', pages: entry.pages });
+    if (!config.contentDates.includes(dateStr)) config.contentDates.push(dateStr);
+    imported++;
+  }
+  await setJSON(CFG_KEY, config);
+
+  statusEl.textContent = `Imported ${imported} day(s) successfully.`;
+  statusEl.style.color = '#2ecc71';
+  loadContentEditorForDate(document.getElementById('contentDate').value);
+});
+
+document.getElementById('bulkExportBtn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('bulkStatus');
+  const result = {};
+  for (const dateStr of config.contentDates) {
+    const content = await getJSON(contentKey(dateStr), null);
+    if (content) result[dateStr] = content;
+  }
+  document.getElementById('bulkJsonArea').value = JSON.stringify(result, null, 2);
+  statusEl.textContent = `Exported ${Object.keys(result).length} day(s) into the box above — copy it out to save.`;
+  statusEl.style.color = '#2ecc71';
+});
+
+// -- prizes editor --
+function renderPrizesEditor() {
+  const container = document.getElementById('prizesEditor');
+  container.innerHTML = '';
+  for (let w = 0; w < config.numWeeks; w++) {
+    const p = prizes[w] || { prizeText: '', requiredDays: config.goalDays };
+    const row = document.createElement('div');
+    row.style.marginBottom = '12px';
+    row.innerHTML = `
+      <label>Week ${w + 1} prize
+        <input type="text" class="prize-text-input" data-week="${w}" value="${(p.prizeText || '').replace(/"/g,'&quot;')}" placeholder="e.g. Trip to the park">
+      </label>
+      <label>Days required
+        <input type="number" min="1" max="7" class="prize-days-input" data-week="${w}" value="${p.requiredDays || config.goalDays}">
+      </label>
+      <label>Prize image URL (optional)
+        <input type="text" class="prize-image-input" data-week="${w}" value="${(p.imageUrl || '').replace(/"/g,'&quot;')}" placeholder="https://example.com/prize.jpg">
+      </label>
+    `;
+    container.appendChild(row);
+  }
+}
+
+document.getElementById('savePrizesBtn').addEventListener('click', async () => {
+  const textInputs = document.querySelectorAll('.prize-text-input');
+  const dayInputs = document.querySelectorAll('.prize-days-input');
+  const imageInputs = document.querySelectorAll('.prize-image-input');
+  textInputs.forEach(inp => {
+    const w = inp.dataset.week;
+    if (!prizes[w]) prizes[w] = {};
+    prizes[w].prizeText = inp.value || 'Surprise prize!';
+  });
+  dayInputs.forEach(inp => {
+    const w = inp.dataset.week;
+    if (!prizes[w]) prizes[w] = {};
+    prizes[w].requiredDays = parseInt(inp.value) || config.goalDays;
+  });
+  imageInputs.forEach(inp => {
+    const w = inp.dataset.week;
+    if (!prizes[w]) prizes[w] = {};
+    prizes[w].imageUrl = inp.value.trim();
+  });
+  await setJSON(PRIZES_KEY, prizes);
+  alert('Prizes saved');
+});
+
+loadAll();
+</script>
+</body>
+</html>
