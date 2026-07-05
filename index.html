@@ -395,12 +395,10 @@ function renderChild() {
 }
 
 async function onDayTap(dateStr) {
-  if (config.contentDates.includes(dateStr)) {
-    const content = await getJSON(contentKey(dateStr), null);
-    if (content && content.pages && content.pages.length) {
-      openModal(dateStr, content);
-      return;
-    }
+  const content = await getJSON(contentKey(dateStr), null);
+  if (content && content.pages && content.pages.length) {
+    openModal(dateStr, content);
+    return;
   }
   toggleDayRead(dateStr);
 }
@@ -445,12 +443,10 @@ document.getElementById('modalCloseBtn').addEventListener('click', () => {
 
 document.getElementById('todayChallengeBtn').addEventListener('click', async () => {
   const dateStr = todayStr();
-  if (config.contentDates.includes(dateStr)) {
-    const content = await getJSON(contentKey(dateStr), null);
-    if (content && content.pages && content.pages.length) {
-      openModal(dateStr, content);
-      return;
-    }
+  const content = await getJSON(contentKey(dateStr), null);
+  if (content && content.pages && content.pages.length) {
+    openModal(dateStr, content);
+    return;
   }
   alert("No reading set for today yet — just tap today's box on the calendar below to mark it as read once you've finished your book.");
 });
