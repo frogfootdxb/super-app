@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <title>Summer Reading Challenge</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -70,6 +73,9 @@
     <div class="points-total" id="totalPoints">0</div>
     <div class="points-label">total points earned</div>
   </div>
+  <div style="text-align:center; margin-bottom:20px;">
+    <button id="todayChallengeBtn" class="btn btn-primary" style="font-size:1rem; padding:14px 24px;">📖 View Today's Reading</button>
+  </div>
   <div id="weeksContainer" class="loading">Loading your challenge...</div>
   <div class="footer-links">
     <button id="adminEnterBtn">⚙️ Admin</button>
@@ -122,6 +128,7 @@
       <button class="btn btn-secondary" id="addPageBtn" type="button">+ Add Page</button>
       <div style="margin-top:12px;">
         <button class="btn btn-primary" id="saveContentBtn">Save Day's Challenge</button>
+        <button class="btn btn-secondary" id="previewContentBtn" type="button">Preview</button>
         <button class="btn btn-secondary" id="clearContentBtn" type="button">Clear This Day</button>
       </div>
     </div>
@@ -207,10 +214,35 @@
 </div>
 
 <script>
-const CFG_KEY = 'rc-config';
-const DAYS_KEY = 'rc-days';
-const PRIZES_KEY = 'rc-prizes';
-const contentKey = (dateStr) => 'rc-content-' + dateStr;
+const firebaseConfig = {
+  apiKey: "AIzaSyAjF_mHNmtLst4L-12_bv3uujI26xheqXc",
+  authDomain: "reading-challenge-ecd3d.firebaseapp.com",
+  databaseURL: "https://reading-challenge-ecd3d-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "reading-challenge-ecd3d",
+  storageBucket: "reading-challenge-ecd3d.firebasestorage.app",
+  messagingSenderId: "466198472595",
+  appId: "1:466198472595:web:6befb1774759968fd46a66"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+function ensureSignedIn() {
+  return new Promise((resolve, reject) => {
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        resolve(user);
+      } else {
+        auth.signInAnonymously().catch(reject);
+      }
+    });
+  });
+}
+
+const CFG_KEY = 'config';
+const DAYS_KEY = 'days';
+const PRIZES_KEY = 'prizes';
+const contentKey = (dateStr) => 'content/' + dateStr;
 
 let config = null;
 let daysRead = {};
@@ -229,23 +261,39 @@ function formatShort(dateStr) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-async function getJSON(key, fallback) {
+async function getJSON(path, fallback) {
   try {
-    const r = await window.storage.get(key);
-    return r && r.value ? JSON.parse(r.value) : fallback;
+    const snap = await db.ref(path).get();
+    return snap.exists() ? snap.val() : fallback;
   } catch (e) {
+    console.error('Firebase read failed', path, e);
     return fallback;
   }
 }
-async function setJSON(key, obj) {
+async function setJSON(path, obj) {
   try {
-    await window.storage.set(key, JSON.stringify(obj));
+    await db.ref(path).set(obj);
   } catch (e) {
-    console.error('storage set failed', e);
+    console.error('Firebase write failed', path, e);
+    alert('Save failed — check your internet connection. Error: ' + e.message);
+  }
+}
+async function deleteKey(path) {
+  try {
+    await db.ref(path).remove();
+  } catch (e) {
+    console.error('Firebase delete failed', path, e);
   }
 }
 
 async function loadAll() {
+  try {
+    await ensureSignedIn();
+  } catch (e) {
+    document.getElementById('weeksContainer').textContent = 'Could not connect — check your internet connection.';
+    console.error('Auth failed', e);
+    return;
+  }
   config = await getJSON(CFG_KEY, null);
   if (!config) {
     config = {
@@ -350,8 +398,8 @@ async function onDayTap(dateStr) {
   toggleDayRead(dateStr);
 }
 
-function openModal(dateStr, content) {
-  modalState = { dateStr, pages: content.pages, index: 0, title: content.title };
+function openModal(dateStr, content, isPreview) {
+  modalState = { dateStr, pages: content.pages, index: 0, title: content.title, isPreview: !!isPreview };
   document.getElementById('challengeModal').classList.add('open');
   renderModalPage();
 }
@@ -366,7 +414,7 @@ function renderModalPage() {
   document.getElementById('modalPageContent').innerHTML = html;
   document.getElementById('modalPageIndicator').textContent = `Page ${index + 1} of ${pages.length}`;
   const nextBtn = document.getElementById('modalNextBtn');
-  nextBtn.textContent = index === pages.length - 1 ? '⭐ Mark as read' : 'Next →';
+  nextBtn.textContent = index === pages.length - 1 ? (modalState.isPreview ? 'Close Preview' : '⭐ Mark as read') : 'Next →';
   document.getElementById('modalPrevBtn').disabled = index === 0;
 }
 
@@ -379,7 +427,7 @@ document.getElementById('modalNextBtn').addEventListener('click', () => {
     renderModalPage();
   } else {
     document.getElementById('challengeModal').classList.remove('open');
-    toggleDayRead(modalState.dateStr);
+    if (!modalState.isPreview) toggleDayRead(modalState.dateStr);
   }
 });
 document.getElementById('modalCloseBtn').addEventListener('click', () => {
@@ -387,6 +435,18 @@ document.getElementById('modalCloseBtn').addEventListener('click', () => {
 });
 
 // ---------- Admin ----------
+
+document.getElementById('todayChallengeBtn').addEventListener('click', async () => {
+  const dateStr = todayStr();
+  if (config.contentDates.includes(dateStr)) {
+    const content = await getJSON(contentKey(dateStr), null);
+    if (content && content.pages && content.pages.length) {
+      openModal(dateStr, content);
+      return;
+    }
+  }
+  alert("No reading set for today yet — just tap today's box on the calendar below to mark it as read once you've finished your book.");
+});
 
 document.getElementById('adminEnterBtn').addEventListener('click', () => {
   document.getElementById('childView').style.display = 'none';
@@ -550,11 +610,27 @@ document.getElementById('saveContentBtn').addEventListener('click', async () => 
   alert('Saved challenge for ' + formatShort(dateStr));
 });
 
+document.getElementById('previewContentBtn').addEventListener('click', () => {
+  const dateStr = document.getElementById('contentDate').value;
+  const title = document.getElementById('contentTitle').value;
+  const rows = document.querySelectorAll('#pagesEditor .page-editor');
+  const pages = Array.from(rows).map(row => ({
+    text: row.querySelector('.page-text-input').value,
+    image: row.dataset.image || null
+  })).filter(p => p.text || p.image);
+
+  if (pages.length === 0) {
+    alert('Add at least one page with text or an image to preview');
+    return;
+  }
+  openModal(dateStr, { title, pages }, true);
+});
+
 document.getElementById('clearContentBtn').addEventListener('click', async () => {
   const dateStr = document.getElementById('contentDate').value;
   if (!dateStr) return;
   if (!confirm('Clear challenge content for ' + formatShort(dateStr) + '?')) return;
-  await window.storage.delete(contentKey(dateStr)).catch(() => {});
+  await deleteKey(contentKey(dateStr));
   config.contentDates = config.contentDates.filter(d => d !== dateStr);
   await setJSON(CFG_KEY, config);
   loadContentEditorForDate(dateStr);
