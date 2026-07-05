@@ -39,16 +39,16 @@
   .footer-links { text-align: center; margin: 20px 0 10px; }
   .footer-links button { background: none; border: none; color: #b08968; font-size: 0.85rem; text-decoration: underline; margin: 0 8px; }
 
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: white; border-radius: 16px; padding: 20px; max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto; }
-  .modal h2 { margin-top: 0; font-size: 1.2rem; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: #fff8ee; z-index: 1000; }
+  .modal-overlay.open { display: flex; flex-direction: column; }
+  .modal { background: transparent; padding: 20px; padding-bottom: 100px; max-width: 600px; width: 100%; margin: 0 auto; height: 100%; overflow-y: auto; box-sizing: border-box; }
+  .modal h2 { margin-top: 10px; font-size: 1.4rem; }
   .modal img { max-width: 100%; border-radius: 10px; margin: 10px 0; }
-  .modal .page-text { font-size: 1rem; line-height: 1.5; white-space: pre-wrap; }
-  .modal-nav { display: flex; justify-content: space-between; margin-top: 16px; }
-  .modal-nav button { padding: 10px 16px; border-radius: 8px; border: none; background: #f0f0f0; }
+  .modal .page-text { font-size: 1.15rem; line-height: 1.7; white-space: pre-wrap; }
+  .modal-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+  .modal-nav button { padding: 12px 20px; border-radius: 8px; border: none; background: #f0f0f0; font-size: 1rem; }
   .modal-nav button.primary { background: #e67e22; color: white; }
-  .modal-close { background: none; border: none; float: right; font-size: 1.2rem; cursor: pointer; }
+  .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 4px 10px; }
 
   .admin-section { background: white; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
   .admin-section h3 { margin-top: 0; font-size: 1rem; }
@@ -158,7 +158,7 @@
       <h3>Bulk Import / Export (JSON)</h3>
       <p style="font-size:0.85rem; color:#8a6a4a; margin-top:0;">
         Format: an object keyed by date (YYYY-MM-DD), each with a title and pages array.
-        Image field is optional — omit it or leave blank for text-only pages.
+        Each page can have "text", and optionally "imageUrl" (a link to an image) — omit both image fields for text-only pages.
       </p>
       <textarea id="bulkJsonArea" rows="8" placeholder='{
   "2026-07-06": {
@@ -202,14 +202,14 @@
 
 <div class="modal-overlay" id="challengeModal">
   <div class="modal">
-    <button class="modal-close" id="modalCloseBtn">✕</button>
+    <button class="modal-close" id="modalCloseBtn">✕ Close</button>
     <h2 id="modalTitle">Today's Reading</h2>
     <div id="modalPageContent"></div>
-    <div class="modal-nav">
-      <button id="modalPrevBtn">← Prev</button>
-      <span id="modalPageIndicator" style="align-self:center; font-size:0.85rem; color:#999;"></span>
-      <button id="modalNextBtn" class="primary">Next →</button>
-    </div>
+  </div>
+  <div class="modal-nav">
+    <button id="modalPrevBtn">← Prev</button>
+    <span id="modalPageIndicator" style="font-size:0.85rem; color:#999;"></span>
+    <button id="modalNextBtn" class="primary">Next →</button>
   </div>
 </div>
 
@@ -414,7 +414,7 @@ function renderModalPage() {
   document.getElementById('modalTitle').textContent = title || formatShort(dateStr);
   const page = pages[index];
   let html = '';
-  if (page.image) html += `<img src="${page.image}">`;
+  if (page.image || page.imageUrl) html += `<img src="${page.image || page.imageUrl}">`;
   html += `<div class="page-text">${(page.text || '').replace(/</g,'&lt;')}</div>`;
   document.getElementById('modalPageContent').innerHTML = html;
   document.getElementById('modalPageIndicator').textContent = `Page ${index + 1} of ${pages.length}`;
@@ -533,13 +533,13 @@ async function loadContentEditorForDate(dateStr) {
   const editor = document.getElementById('pagesEditor');
   editor.innerHTML = '';
   if (content.pages && content.pages.length) {
-    content.pages.forEach(p => addPageEditorRow(p.text, p.image));
+    content.pages.forEach(p => addPageEditorRow(p.text, p.image, p.imageUrl));
   } else {
     addPageEditorRow('', null);
   }
 }
 
-function addPageEditorRow(text, image) {
+function addPageEditorRow(text, image, imageUrl) {
   const editor = document.getElementById('pagesEditor');
   const row = document.createElement('div');
   row.className = 'page-editor';
@@ -548,10 +548,13 @@ function addPageEditorRow(text, image) {
     <label>Page text
       <textarea rows="3" class="page-text-input">${text ? text.replace(/</g,'&lt;') : ''}</textarea>
     </label>
-    <label>Image (optional)
+    <label>Image upload (optional)
       <input type="file" accept="image/*" class="page-image-input">
     </label>
-    <img class="page-image-preview" src="${image || ''}" style="max-width:100%; border-radius:8px; margin-top:6px; ${image ? '' : 'display:none;'}">
+    <label>Or image URL (optional)
+      <input type="text" class="page-image-url-input" placeholder="https://example.com/picture.jpg" value="${imageUrl ? imageUrl.replace(/"/g,'&quot;') : ''}">
+    </label>
+    <img class="page-image-preview" src="${image || imageUrl || ''}" style="max-width:100%; border-radius:8px; margin-top:6px; ${(image || imageUrl) ? '' : 'display:none;'}">
   `;
   row.dataset.image = image || '';
   row.querySelector('.remove-page').addEventListener('click', () => row.remove());
@@ -564,6 +567,16 @@ function addPageEditorRow(text, image) {
       preview.src = dataUrl;
       preview.style.display = 'block';
     });
+  });
+  row.querySelector('.page-image-url-input').addEventListener('input', (e) => {
+    if (row.dataset.image) return; // uploaded image takes priority in preview
+    const preview = row.querySelector('.page-image-preview');
+    if (e.target.value) {
+      preview.src = e.target.value;
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
   });
   editor.appendChild(row);
 }
@@ -597,8 +610,9 @@ document.getElementById('saveContentBtn').addEventListener('click', async () => 
   const rows = document.querySelectorAll('#pagesEditor .page-editor');
   const pages = Array.from(rows).map(row => ({
     text: row.querySelector('.page-text-input').value,
-    image: row.dataset.image || null
-  })).filter(p => p.text || p.image);
+    image: row.dataset.image || null,
+    imageUrl: row.querySelector('.page-image-url-input').value.trim() || null
+  })).filter(p => p.text || p.image || p.imageUrl);
 
   if (pages.length === 0) {
     alert('Add at least one page with text or an image');
@@ -619,8 +633,9 @@ document.getElementById('previewContentBtn').addEventListener('click', () => {
   const rows = document.querySelectorAll('#pagesEditor .page-editor');
   const pages = Array.from(rows).map(row => ({
     text: row.querySelector('.page-text-input').value,
-    image: row.dataset.image || null
-  })).filter(p => p.text || p.image);
+    image: row.dataset.image || null,
+    imageUrl: row.querySelector('.page-image-url-input').value.trim() || null
+  })).filter(p => p.text || p.image || p.imageUrl);
 
   if (pages.length === 0) {
     alert('Add at least one page with text or an image to preview');
