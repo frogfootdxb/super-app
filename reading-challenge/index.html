@@ -76,7 +76,7 @@
 
 <div id="childView">
   <h1>📚 Summer Reading Challenge</h1>
-  <div style="text-align:center; font-size:0.7rem; color:#c9a876; margin-bottom:6px;">v8 — 2026-07-06</div>
+  <div style="text-align:center; font-size:0.7rem; color:#c9a876; margin-bottom:6px;">v9 — 2026-07-06</div>
   <div class="subtitle" id="dateRange">Loading...</div>
   <div class="points-bar">
     <div class="points-total" id="totalPoints">0</div>
@@ -571,6 +571,7 @@ document.getElementById('saveConfig').addEventListener('click', async () => {
   config.numWeeks = parseInt(document.getElementById('numWeeks').value) || 6;
   config.readingLevel = document.getElementById('readingLevel').value || config.readingLevel;
   await setJSON(CFG_KEY, config);
+  populatePromptWeekSelect();
   alert('Settings saved');
 });
 
