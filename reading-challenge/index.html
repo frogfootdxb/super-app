@@ -76,7 +76,7 @@
 
 <div id="childView">
   <h1>📚 Summer Reading Challenge</h1>
-  <div style="text-align:center; font-size:0.7rem; color:#c9a876; margin-bottom:6px;">v9 — 2026-07-06</div>
+  <div style="text-align:center; font-size:0.7rem; color:#c9a876; margin-bottom:6px;">v10 — 2026-07-06</div>
   <div class="subtitle" id="dateRange">Loading...</div>
   <div class="points-bar">
     <div class="points-total" id="totalPoints">0</div>
@@ -260,17 +260,21 @@ let adminUnlocked = false;
 let modalState = { dateStr: null, pages: [], index: 0 };
 
 function todayStr() { return new Date().toISOString().slice(0,10); }
+function parseDateUTC(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
 function addDays(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0,10);
+  const date = parseDateUTC(dateStr);
+  date.setUTCDate(date.getUTCDate() + n);
+  return date.toISOString().slice(0, 10);
 }
 function formatShort(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const date = parseDateUTC(dateStr);
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 function mondayOnOrBefore(dateStr) {
-  const day = new Date(dateStr + 'T00:00:00').getDay(); // 0=Sun..6=Sat
+  const day = parseDateUTC(dateStr).getUTCDay(); // 0=Sun..6=Sat
   const diff = day === 0 ? 6 : day - 1;
   return addDays(dateStr, -diff);
 }
@@ -393,9 +397,9 @@ function renderChild() {
 
     for (let d = 0; d < 7; d++) {
       const dateStr = addDays(weekStart, d);
-      const dateObj = new Date(dateStr + 'T00:00:00');
-      const letter = weekdayLetters[dateObj.getDay()];
-      const dayNum = dateObj.getDate();
+      const dateObj = parseDateUTC(dateStr);
+      const letter = weekdayLetters[dateObj.getUTCDay()];
+      const dayNum = dateObj.getUTCDate();
       const isRead = !!daysRead[dateStr];
       const isFuture = dateStr > today;
       const indexEntry = config.contentIndex[dateStr];
